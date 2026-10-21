@@ -6,7 +6,7 @@ if not exist .venv\Scripts\python.exe (
     pause
     exit /b 1
 )
-echo 幼儿行为观察助手已启动，浏览器会自动打开 http://127.0.0.1:8000
+echo 小宝ai@孙老师已启动，浏览器会自动打开 http://127.0.0.1:8000
 echo 使用期间请不要关闭这个窗口。
 start "" cmd /c "timeout /t 3 >nul & start http://127.0.0.1:8000"
 .venv\Scripts\python app.py

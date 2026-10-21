@@ -3,86 +3,102 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>幼儿行为观察助手</title>
+<title>小宝ai@孙老师</title>
 <style>
   :root {
-    --bg: #f6f4ef; --card: #ffffff; --ink: #2b2a27; --muted: #77736a;
-    --line: #e4e0d6; --accent: #3f7d5c; --accent-soft: #e6f0ea; --warn: #9a6b12; --warn-soft: #fbf3e2;
-    --err: #b3412f;
+    --bg: #fdf6ec; --card: #fffdf8; --ink: #4a3f35; --muted: #9b8a78;
+    --line: #f0e2cf; --accent: #f59e52; --accent-deep: #e8812c; --accent-soft: #fdeedd;
+    --green: #689f38; --green-soft: #f1f8e5; --err: #b3412f;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.65 -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
-  header { padding: 20px 28px; border-bottom: 1px solid var(--line); background: var(--card); }
-  header h1 { margin: 0; font-size: 20px; }
+    font: 15px/1.7 -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+  header { padding: 24px 32px 8px; display: flex; align-items: center; gap: 14px; }
+  .logo { width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(135deg,#ffd98e,#f59e52);
+    display: grid; place-items: center; font-size: 26px; flex: none;
+    box-shadow: 0 4px 14px rgba(232,129,44,.3); }
+  header h1 { margin: 0; font-size: 22px; }
   header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
-  main { display: grid; grid-template-columns: 380px 1fr; gap: 24px; padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+  main { display: grid; grid-template-columns: 400px 1fr; gap: 24px; padding: 20px 32px 40px; max-width: 1420px; margin: 0 auto; }
   @media (max-width: 960px) { main { grid-template-columns: 1fr; padding: 16px; } }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
-  .card + .card { margin-top: 16px; }
-  h2 { font-size: 16px; margin: 0 0 14px; }
-  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
-  input, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+  .card { background: var(--card); border: 2px solid var(--line); border-radius: 22px; padding: 24px; }
+  .card + .card { margin-top: 18px; }
+  h2 { font-size: 17px; margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+  .step { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff;
+    display: grid; place-items: center; font-size: 15px; flex: none; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 5px; }
+  input, textarea { width: 100%; padding: 10px 13px; border: 2px solid var(--line); border-radius: 13px;
     font: inherit; color: inherit; background: #fff; }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); }
   textarea { resize: vertical; min-height: 60px; }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .drop { border: 2px dashed var(--line); border-radius: 10px; padding: 18px; text-align: center; cursor: pointer;
-    color: var(--muted); transition: .15s; }
-  .drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
-  .drop strong { color: var(--ink); }
-  video { width: 100%; border-radius: 8px; margin-top: 10px; background: #000; display: none; }
-  button { font: inherit; border: 0; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
-  .primary { background: var(--accent); color: #fff; width: 100%; margin-top: 18px; font-weight: 600; }
-  .primary:disabled { opacity: .5; cursor: not-allowed; }
-  .ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); }
-  .ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .drop { border: 3px dashed #f3cf9e; border-radius: 18px; padding: 26px 18px; text-align: center; cursor: pointer;
+    color: var(--muted); background: var(--accent-soft); transition: .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent-deep); background: #fce3c4; }
+  .drop strong { color: var(--accent-deep); font-size: 16px; }
+  video { width: 100%; border-radius: 14px; margin-top: 12px; background: #000; display: none; }
+  button { font: inherit; border: 0; border-radius: 12px; padding: 10px 16px; cursor: pointer; }
+  .primary { background: linear-gradient(135deg,#f6ad5f,#e8812c); color: #fff; width: 100%; margin-top: 20px;
+    padding: 13px; border-radius: 16px; font-size: 16px; font-weight: 700;
+    box-shadow: 0 6px 16px rgba(232,129,44,.35); }
+  .primary:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+  .ghost { background: #fff; border: 2px solid var(--line); color: var(--ink); }
+  .ghost:hover { border-color: var(--accent); color: var(--accent-deep); }
   .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
-  .bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; margin: 10px 0 6px; }
-  .bar div { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+  .bar { height: 10px; background: var(--accent-soft); border-radius: 5px; overflow: hidden; margin: 10px 0 6px; }
+  .bar div { height: 100%; width: 0; background: linear-gradient(90deg,#f6ad5f,#e8812c); transition: width .4s; }
   .status { font-size: 13px; color: var(--muted); }
   .status.err { color: var(--err); }
   .log { max-height: 340px; overflow: auto; margin-top: 12px; font-size: 13px; }
   .log .seg { color: var(--muted); font-size: 12px; margin: 10px 0 4px; }
-  .log .item { display: grid; grid-template-columns: 48px 1fr; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
-  .ts { color: var(--accent); font-variant-numeric: tabular-nums; cursor: pointer; font-weight: 600; }
+  .log .item { display: flex; gap: 10px; padding: 7px 10px; border-radius: 10px; margin: 3px 0; background: var(--green-soft); }
+  .ts { color: var(--green); font-variant-numeric: tabular-nums; cursor: pointer; font-weight: 700; flex: none; }
   .ts:hover { text-decoration: underline; }
   .who { color: var(--muted); }
   .empty { color: var(--muted); text-align: center; padding: 60px 20px; }
-  .notice { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
-  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-  #record h3 { text-align: center; font-size: 20px; margin: 4px 0 16px; letter-spacing: 2px; }
-  table.rec { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  table.rec th, table.rec td { border: 1px solid #b9b4a8; padding: 8px 10px; vertical-align: top; text-align: left; }
-  table.rec th { background: #f3f1ea; width: 110px; font-weight: 600; white-space: nowrap; }
+  .notice { background: var(--accent-soft); color: var(--accent-deep); border-radius: 14px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  #record h3 { text-align: center; font-size: 21px; margin: 6px 0 18px; letter-spacing: 3px; }
+  table.rec { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;
+    border: 2px solid var(--line); border-radius: 16px; overflow: hidden; }
+  table.rec th, table.rec td { border-bottom: 1px solid var(--line); padding: 10px 14px; vertical-align: top; text-align: left; }
+  table.rec td + th, table.rec th + td + th + td { border-left: 1px solid var(--line); }
+  table.rec tr:last-child th, table.rec tr:last-child td { border-bottom: 0; }
+  table.rec th { background: #fbf3e4; width: 118px; font-weight: 600; white-space: nowrap; color: #8a6d3b; }
   table.rec td { white-space: pre-wrap; }
   table.rec td.big { min-height: 120px; height: auto; }
-  [contenteditable]:focus { outline: 2px solid var(--accent-soft); background: #fbfdfb; }
+  [contenteditable]:focus { outline: 2px solid var(--accent-soft); background: #fffaf2; }
   .sign { display: flex; justify-content: flex-end; gap: 40px; margin-top: 18px; font-size: 14px; }
   @media print {
     header, aside, .toolbar, .notice { display: none !important; }
     body { background: #fff; }
     main { display: block; padding: 0; }
-    .card { border: 0; padding: 0; }
+    .card { border: 0; padding: 0; border-radius: 0; }
+    table.rec { border-collapse: collapse; border-radius: 0; border: 0; }
+    table.rec th, table.rec td { border: 1px solid #000; }
   }
 </style>
 </head>
 <body>
 <header>
-  <h1>幼儿行为观察助手</h1>
-  <p>上传活动视频，AI 逐段记录幼儿行为并生成观察记录表草稿 · 模型 Qwen3-VL-8B 在本机运行，视频不会上传到任何外部服务器</p>
+  <div class="logo">🌻</div>
+  <div>
+    <h1>小宝ai@孙老师</h1>
+    <p>上传活动视频，AI 逐段记录幼儿行为并生成观察记录表草稿 · 模型 Qwen3-VL-8B 在本机运行，视频不会上传到任何外部服务器</p>
+  </div>
 </header>
 
 <main>
   <aside>
     <div class="card">
-      <h2>1. 上传视频</h2>
-      <div class="drop" id="drop"><strong>点击选择</strong>或把视频拖到这里<br><span class="hint">支持 mp4 / mov 等常见格式</span></div>
+      <h2><span class="step">1</span>上传视频</h2>
+      <div class="drop" id="drop"><strong>点击选择</strong>或把视频拖到这里<br><span class="hint">支持 mp4 / mov 等常见格式 · 分析完成后自动删除</span></div>
       <input type="file" id="file" accept="video/*" hidden>
       <video id="preview" controls></video>
     </div>
 
     <div class="card">
-      <h2>2. 观察信息</h2>
+      <h2><span class="step">2</span>观察信息</h2>
       <div class="row">
         <div><label>观察对象</label><input id="child" placeholder="如：小明"></div>
         <div><label>班级 / 年龄</label><input id="klass" placeholder="如：中二班 / 4岁5个月"></div>
@@ -102,7 +118,7 @@
     </div>
 
     <div class="card" id="progressCard" hidden>
-      <h2>分析进度</h2>
+      <h2><span class="step">3</span>分析进度</h2>
       <div class="bar"><div id="barFill"></div></div>
       <div class="status" id="status"></div>
       <div class="log" id="log"></div>
@@ -112,11 +128,11 @@
   <section class="card">
     <div id="placeholder" class="empty">填写左侧信息并开始分析后，观察记录表会显示在这里</div>
     <div id="result" hidden>
-      <div class="notice">这是 AI 生成的草稿，可能有看错或遗漏的地方。请对照视频核对；表格内容可以直接点击修改。</div>
+      <div class="notice">🌱 这是 AI 生成的草稿，可能有看错或遗漏的地方。请对照视频核对；表格内容可以直接点击修改。</div>
       <div class="toolbar">
-        <button class="ghost" id="btnPrint">打印 / 存为 PDF</button>
-        <button class="ghost" id="btnWord">下载 Word</button>
-        <button class="ghost" id="btnCopy">复制文本</button>
+        <button class="ghost" id="btnPrint">🖨️ 打印 / 存为 PDF</button>
+        <button class="ghost" id="btnWord">📄 下载 Word</button>
+        <button class="ghost" id="btnCopy">📋 复制文本</button>
       </div>
       <div id="record">
         <h3>幼儿行为观察记录表</h3>

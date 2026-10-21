@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-echo ==== 幼儿行为观察助手：安装 ====
+echo ==== 小宝ai@孙老师：安装 ====
 echo.
 
 rem 找可用的 Python：优先 py 启动器（"python" 可能是微软商店的占位程序，不可用）
