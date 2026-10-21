@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>幼儿行为观察助手</title>
+<style>
+  :root {
+    --bg: #f6f4ef; --card: #ffffff; --ink: #2b2a27; --muted: #77736a;
+    --line: #e4e0d6; --accent: #3f7d5c; --accent-soft: #e6f0ea; --warn: #9a6b12; --warn-soft: #fbf3e2;
+    --err: #b3412f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.65 -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+  header { padding: 20px 28px; border-bottom: 1px solid var(--line); background: var(--card); }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: 380px 1fr; gap: 24px; padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 960px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  .card + .card { margin-top: 16px; }
+  h2 { font-size: 16px; margin: 0 0 14px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  input, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+    font: inherit; color: inherit; background: #fff; }
+  textarea { resize: vertical; min-height: 60px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .drop { border: 2px dashed var(--line); border-radius: 10px; padding: 18px; text-align: center; cursor: pointer;
+    color: var(--muted); transition: .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .drop strong { color: var(--ink); }
+  video { width: 100%; border-radius: 8px; margin-top: 10px; background: #000; display: none; }
+  button { font: inherit; border: 0; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
+  .primary { background: var(--accent); color: #fff; width: 100%; margin-top: 18px; font-weight: 600; }
+  .primary:disabled { opacity: .5; cursor: not-allowed; }
+  .ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+  .ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; margin: 10px 0 6px; }
+  .bar div { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+  .status { font-size: 13px; color: var(--muted); }
+  .status.err { color: var(--err); }
+  .log { max-height: 340px; overflow: auto; margin-top: 12px; font-size: 13px; }
+  .log .seg { color: var(--muted); font-size: 12px; margin: 10px 0 4px; }
+  .log .item { display: grid; grid-template-columns: 48px 1fr; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .ts { color: var(--accent); font-variant-numeric: tabular-nums; cursor: pointer; font-weight: 600; }
+  .ts:hover { text-decoration: underline; }
+  .who { color: var(--muted); }
+  .empty { color: var(--muted); text-align: center; padding: 60px 20px; }
+  .notice { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  #record h3 { text-align: center; font-size: 20px; margin: 4px 0 16px; letter-spacing: 2px; }
+  table.rec { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.rec th, table.rec td { border: 1px solid #b9b4a8; padding: 8px 10px; vertical-align: top; text-align: left; }
+  table.rec th { background: #f3f1ea; width: 110px; font-weight: 600; white-space: nowrap; }
+  table.rec td { white-space: pre-wrap; }
+  table.rec td.big { min-height: 120px; height: auto; }
+  [contenteditable]:focus { outline: 2px solid var(--accent-soft); background: #fbfdfb; }
+  .sign { display: flex; justify-content: flex-end; gap: 40px; margin-top: 18px; font-size: 14px; }
+  @media print {
+    header, aside, .toolbar, .notice { display: none !important; }
+    body { background: #fff; }
+    main { display: block; padding: 0; }
+    .card { border: 0; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>幼儿行为观察助手</h1>
+  <p>上传活动视频，AI 逐段记录幼儿行为并生成观察记录表草稿 · 模型 Qwen3-VL-8B 在本机运行，视频不会上传到任何外部服务器</p>
+</header>
+
+<main>
+  <aside>
+    <div class="card">
+      <h2>1. 上传视频</h2>
+      <div class="drop" id="drop"><strong>点击选择</strong>或把视频拖到这里<br><span class="hint">支持 mp4 / mov 等常见格式</span></div>
+      <input type="file" id="file" accept="video/*" hidden>
+      <video id="preview" controls></video>
+    </div>
+
+    <div class="card">
+      <h2>2. 观察信息</h2>
+      <div class="row">
+        <div><label>观察对象</label><input id="child" placeholder="如：小明"></div>
+        <div><label>班级 / 年龄</label><input id="klass" placeholder="如：中二班 / 4岁5个月"></div>
+      </div>
+      <div class="row">
+        <div><label>观察日期</label><input id="date" type="date"></div>
+        <div><label>观察者</label><input id="observer" placeholder="教师姓名"></div>
+      </div>
+      <label>活动场景</label>
+      <input id="scene" placeholder="如：区域活动·建构区，自由搭建">
+      <label>观察对象在画面中的外貌特征</label>
+      <textarea id="targets" placeholder="帮助 AI 认出要观察的孩子，如：穿黄色上衣、戴眼镜的男孩。不填则观察所有幼儿"></textarea>
+      <label>观察重点</label>
+      <textarea id="focus" placeholder="如：同伴交往、解决问题的方式、专注时长"></textarea>
+      <button class="primary" id="go" disabled>开始分析</button>
+      <div class="hint">分析在本机进行，速度取决于电脑显卡；没有独立显卡时会比较慢。</div>
+    </div>
+
+    <div class="card" id="progressCard" hidden>
+      <h2>分析进度</h2>
+      <div class="bar"><div id="barFill"></div></div>
+      <div class="status" id="status"></div>
+      <div class="log" id="log"></div>
+    </div>
+  </aside>
+
+  <section class="card">
+    <div id="placeholder" class="empty">填写左侧信息并开始分析后，观察记录表会显示在这里</div>
+    <div id="result" hidden>
+      <div class="notice">这是 AI 生成的草稿，可能有看错或遗漏的地方。请对照视频核对；表格内容可以直接点击修改。</div>
+      <div class="toolbar">
+        <button class="ghost" id="btnPrint">打印 / 存为 PDF</button>
+        <button class="ghost" id="btnWord">下载 Word</button>
+        <button class="ghost" id="btnCopy">复制文本</button>
+      </div>
+      <div id="record">
+        <h3>幼儿行为观察记录表</h3>
+        <table class="rec">
+          <tr><th>观察对象</th><td contenteditable data-k="child"></td><th>班级 / 年龄</th><td contenteditable data-k="klass"></td></tr>
+          <tr><th>观察日期</th><td contenteditable data-k="date"></td><th>观察时长</th><td contenteditable data-k="duration"></td></tr>
+          <tr><th>观察地点 / 活动</th><td contenteditable data-k="scene"></td><th>观察方法</th><td contenteditable>视频观察 · 轶事记录法</td></tr>
+          <tr><th>观察目的</th><td colspan="3" contenteditable data-k="观察目的"></td></tr>
+          <tr><th>观察实录</th><td colspan="3" class="big" contenteditable data-k="观察实录"></td></tr>
+          <tr><th>分析评价</th><td colspan="3" class="big" contenteditable data-k="分析评价"></td></tr>
+          <tr><th>支持策略</th><td colspan="3" class="big" contenteditable data-k="支持策略"></td></tr>
+        </table>
+        <div class="sign"><span>观察者：<span contenteditable data-k="observer"></span></span></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let file = null;
+
+$('date').valueAsDate = new Date();
+
+function pick(f) {
+  if (!f || !f.type.startsWith('video/')) return;
+  file = f;
+  $('drop').innerHTML = `<strong>${f.name}</strong><br><span class="hint">${(f.size / 1048576).toFixed(1)} MB · 点击更换</span>`;
+  const v = $('preview');
+  v.src = URL.createObjectURL(f);
+  v.style.display = 'block';
+  $('go').disabled = false;
+}
+$('drop').onclick = () => $('file').click();
+$('file').onchange = e => pick(e.target.files[0]);
+$('drop').ondragover = e => { e.preventDefault(); $('drop').classList.add('over'); };
+$('drop').ondragleave = () => $('drop').classList.remove('over');
+$('drop').ondrop = e => { e.preventDefault(); $('drop').classList.remove('over'); pick(e.dataTransfer.files[0]); };
+
+function seek(ts) {
+  const [m, s] = ts.split(':').map(Number);
+  const v = $('preview');
+  v.currentTime = m * 60 + s;
+  v.play();
+  v.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function renderLog(segments) {
+  $('log').innerHTML = segments.map(seg => {
+    const items = seg.rows.length
+      ? seg.rows.map(r => `<div class="item"><span class="ts" data-ts="${esc(r.time)}">${esc(r.time)}</span><span><span class="who">${esc(r.who)}</span>：${esc(r.what)}</span></div>`).join('')
+      : `<div class="item"><span></span><span class="who">${esc(seg.raw || '无明显新行为')}</span></div>`;
+    return `<div class="seg">${esc(seg.range)}</div>${items}`;
+  }).join('');
+  $('log').querySelectorAll('.ts').forEach(el => el.onclick = () => seek(el.dataset.ts));
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+function fillRecord(job) {
+  const r = job.report || {};
+  const values = {
+    child: $('child').value, klass: $('klass').value, date: $('date').value,
+    observer: $('observer').value, scene: $('scene').value, duration: job.duration,
+    ...r,
+  };
+  document.querySelectorAll('#record [data-k]').forEach(el => { el.textContent = values[el.dataset.k] ?? ''; });
+  $('placeholder').hidden = true;
+  $('result').hidden = false;
+}
+
+async function poll(id) {
+  const res = await fetch(`/api/jobs/${id}`);
+  const job = await res.json();
+  $('barFill').style.width = `${Math.round(100 * job.done / Math.max(job.total, 1))}%`;
+  $('status').textContent = job.message;
+  $('status').classList.toggle('err', job.status === 'error');
+  renderLog(job.segments);
+  if (job.status === 'done') { fillRecord(job); $('go').disabled = false; return; }
+  if (job.status === 'error') { $('go').disabled = false; return; }
+  setTimeout(() => poll(id), 1500);
+}
+
+$('go').onclick = async () => {
+  if (!file) return;
+  $('go').disabled = true;
+  $('progressCard').hidden = false;
+  $('status').classList.remove('err');
+  $('status').textContent = '正在上传视频…';
+  $('barFill').style.width = '0';
+  $('log').innerHTML = '';
+  const fd = new FormData();
+  fd.append('video', file);
+  fd.append('scene', $('scene').value);
+  fd.append('targets', $('targets').value);
+  fd.append('focus', $('focus').value);
+  try {
+    const res = await fetch('/api/analyze', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(await res.text());
+    poll((await res.json()).job_id);
+  } catch (e) {
+    $('status').textContent = '上传失败：' + e.message;
+    $('status').classList.add('err');
+    $('go').disabled = false;
+  }
+};
+
+$('btnPrint').onclick = () => window.print();
+
+$('btnWord').onclick = () => {
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">
+<style>body{font-family:"SimSun","宋体";font-size:12pt}h3{text-align:center;font-size:16pt}
+table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:6pt;vertical-align:top;text-align:left}
+th{background:#f2f2f2;white-space:nowrap}td{white-space:pre-wrap}.sign{text-align:right;margin-top:12pt}</style></head>
+<body>${$('record').innerHTML.replace(/ contenteditable(="[^"]*")?/g, '')}</body></html>`;
+  const blob = new Blob(['﻿' + html], { type: 'application/msword' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `观察记录_${$('child').value || '幼儿'}_${$('date').value}.doc`;
+  a.click();
+};
+
+$('btnCopy').onclick = async () => {
+  const lines = ['幼儿行为观察记录表'];
+  document.querySelectorAll('#record tr').forEach(tr => {
+    const cells = [...tr.children];
+    for (let i = 0; i < cells.length; i += 2) lines.push(`${cells[i].textContent}：${cells[i + 1]?.textContent ?? ''}`);
+  });
+  lines.push(document.querySelector('#record .sign').textContent);
+  await navigator.clipboard.writeText(lines.join('\n'));
+  $('btnCopy').textContent = '已复制';
+  setTimeout(() => $('btnCopy').textContent = '复制文本', 1500);
+};
+</script>
+</body>
+</html>
