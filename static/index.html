@@ -67,6 +67,7 @@
   .chip i:hover { color: var(--err); }
   .overlay { position: fixed; inset: 0; background: rgba(74,63,53,.45); display: grid;
     place-items: center; z-index: 50; }
+  .overlay[hidden] { display: none; }
   .modal { background: var(--card); border: 2px solid var(--line); border-radius: 22px;
     width: min(560px, 92vw); max-height: 84vh; overflow: auto; padding: 24px; }
   .mhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
