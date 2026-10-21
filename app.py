@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 import config
@@ -21,6 +21,7 @@ gpu_lock = threading.Lock()
 
 RECORD_DIR = config.DATA_DIR / "records"
 VIDEO_DIR = config.DATA_DIR / "videos"
+CLASS_FILE = config.DATA_DIR / "classes.json"  # 班级和孩子名单
 
 
 def parse_record_lines(text: str) -> list[dict]:
@@ -188,6 +189,20 @@ def history_video(item_id: str):
     if not path.exists():
         raise HTTPException(404, "视频文件不存在")
     return FileResponse(path)
+
+
+@app.get("/api/classes")
+def classes_get():
+    if CLASS_FILE.exists():
+        return json.loads(CLASS_FILE.read_text(encoding="utf-8"))
+    return []
+
+
+@app.put("/api/classes")
+def classes_put(classes: list = Body(...)):
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    CLASS_FILE.write_text(json.dumps(classes, ensure_ascii=False, indent=1), encoding="utf-8")
+    return {"ok": True}
 
 
 @app.delete("/api/history/{item_id}")

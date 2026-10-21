@@ -54,6 +54,17 @@
   .log .item { display: flex; gap: 10px; padding: 7px 10px; border-radius: 10px; margin: 3px 0; background: var(--green-soft); }
   .ts { color: var(--green); font-variant-numeric: tabular-nums; cursor: pointer; font-weight: 700; flex: none; }
   .ts:hover { text-decoration: underline; }
+  select { width: 100%; padding: 10px 13px; border: 2px solid var(--line); border-radius: 13px;
+    font: inherit; color: inherit; background: #fff; }
+  select:focus { outline: none; border-color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--green-soft);
+    border: 2px solid #dcedc2; border-radius: 999px; padding: 5px 12px; cursor: pointer; font-size: 13px; }
+  .chip:hover { border-color: var(--green); }
+  .chip b { background: var(--green); color: #fff; border-radius: 999px; min-width: 18px; height: 18px;
+    display: grid; place-items: center; font-size: 11px; padding: 0 4px; }
+  .chip i { font-style: normal; color: var(--muted); }
+  .chip i:hover { color: var(--err); }
   .hist { cursor: pointer; background: var(--accent-soft); }
   .hist:hover { background: #fce3c4; }
   .hist .name { font-weight: 700; color: var(--accent-deep); flex: none; }
@@ -95,6 +106,20 @@
 
 <main>
   <aside>
+    <div class="card">
+      <h2>👧 班级管理</h2>
+      <div class="row">
+        <select id="classSel"></select>
+        <div style="display:flex;gap:8px">
+          <button class="ghost" id="addClass" style="flex:1">＋班级</button>
+          <button class="ghost" id="delClass">删除</button>
+        </div>
+      </div>
+      <div class="chips" id="children"></div>
+      <button class="ghost" id="addChild" style="margin-top:12px">＋ 添加观察对象</button>
+      <div class="hint">点击孩子：自动填入观察信息，历史记录只显示这个孩子；数字是已有的观察次数。</div>
+    </div>
+
     <div class="card">
       <h2><span class="step">1</span>上传视频</h2>
       <div class="drop" id="drop"><strong>点击选择</strong>或把视频拖到这里<br><span class="hint">支持 mp4 / mov 等常见格式</span></div>
@@ -211,22 +236,92 @@ function showRecord(values) {
   $('result').hidden = false;
 }
 
+let histList = [], histFilter = null;
+let classes = [], curClass = 0;
+
 async function loadHistory() {
-  const list = await (await fetch('/api/history')).json();
-  $('historyCard').hidden = !list.length;
-  $('history').innerHTML = list.map(e => {
+  histList = await (await fetch('/api/history')).json();
+  renderHistory();
+  renderClasses();
+}
+
+function renderHistory() {
+  $('historyCard').hidden = !histList.length;
+  const list = histFilter ? histList.filter(e => (e.meta || {}).child === histFilter) : histList;
+  const head = histFilter
+    ? `<div class="item hist" id="clearFilter"><span class="name">只看：${esc(histFilter)}</span><span class="del">显示全部</span></div>` : '';
+  $('history').innerHTML = head + (list.map(e => {
     const m = e.meta || {};
     const sub = [m.klass, m.date, e.duration].filter(Boolean).join(' · ');
     return `<div class="item hist" data-id="${e.id}"><span class="name">${esc(m.child || '未填姓名')}</span><span>${esc(sub)}</span><span class="del" data-id="${e.id}">删除</span></div>`;
-  }).join('');
-  $('history').querySelectorAll('.del').forEach(el => el.onclick = async ev => {
+  }).join('') || '<div class="hint">这个孩子还没有观察记录</div>');
+  const clear = $('history').querySelector('#clearFilter');
+  if (clear) clear.onclick = () => { histFilter = null; renderHistory(); };
+  $('history').querySelectorAll('.del[data-id]').forEach(el => el.onclick = async ev => {
     ev.stopPropagation();
     if (!confirm('删除这条记录和对应的视频吗？')) return;
     await fetch(`/api/history/${el.dataset.id}`, { method: 'DELETE' });
     loadHistory();
   });
-  $('history').querySelectorAll('.hist').forEach(el => el.onclick = () => openHistory(el.dataset.id));
+  $('history').querySelectorAll('.hist[data-id]').forEach(el => el.onclick = () => openHistory(el.dataset.id));
 }
+
+async function loadClasses() {
+  classes = await (await fetch('/api/classes')).json();
+  renderClasses();
+}
+
+async function saveClasses() {
+  await fetch('/api/classes', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(classes) });
+  renderClasses();
+}
+
+function renderClasses() {
+  $('classSel').innerHTML = classes.map((c, i) =>
+    `<option value="${i}" ${i === curClass ? 'selected' : ''}>${esc(c.name)}</option>`).join('')
+    || '<option value="">（还没有班级）</option>';
+  const c = classes[curClass];
+  $('children').innerHTML = !c ? '' : (c.children.map(n => {
+    const cnt = histList.filter(e => (e.meta || {}).child === n).length;
+    return `<span class="chip" data-n="${esc(n)}">${esc(n)}<b>${cnt}</b><i data-n="${esc(n)}">×</i></span>`;
+  }).join('') || '<div class="hint">点下面的按钮录入孩子</div>');
+  $('children').querySelectorAll('.chip').forEach(el => el.onclick = () => {
+    $('child').value = el.dataset.n;
+    if (classes[curClass]) $('klass').value = classes[curClass].name;
+    histFilter = el.dataset.n;
+    renderHistory();
+  });
+  $('children').querySelectorAll('.chip i').forEach(el => el.onclick = ev => {
+    ev.stopPropagation();
+    if (!confirm(`把 ${el.dataset.n} 从班级名单里移除吗？（已有的观察记录不会删除）`)) return;
+    classes[curClass].children = classes[curClass].children.filter(x => x !== el.dataset.n);
+    saveClasses();
+  });
+}
+
+$('classSel').onchange = () => { curClass = +$('classSel').value || 0; renderClasses(); };
+$('addClass').onclick = () => {
+  const n = (prompt('班级名称，如：中二班') || '').trim();
+  if (!n) return;
+  classes.push({ name: n, children: [] });
+  curClass = classes.length - 1;
+  saveClasses();
+};
+$('delClass').onclick = () => {
+  if (!classes[curClass]) return;
+  if (!confirm(`删除班级 ${classes[curClass].name} 吗？（孩子的观察记录不会删除）`)) return;
+  classes.splice(curClass, 1);
+  curClass = 0;
+  saveClasses();
+};
+$('addChild').onclick = () => {
+  if (!classes[curClass]) { alert('请先点"＋班级"新建一个班级'); return; }
+  const n = (prompt('孩子姓名') || '').trim();
+  if (!n) return;
+  if (!classes[curClass].children.includes(n)) classes[curClass].children.push(n);
+  saveClasses();
+};
 
 async function openHistory(id) {
   const e = await (await fetch(`/api/history/${id}`)).json();
@@ -292,7 +387,7 @@ $('go').onclick = async () => {
 
 $('btnPrint').onclick = () => window.print();
 
-loadHistory();
+(async () => { await loadClasses(); await loadHistory(); })();
 
 $('btnWord').onclick = () => {
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">
