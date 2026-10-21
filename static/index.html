@@ -266,7 +266,22 @@ let classes = [], curClass = 0;
 async function loadHistory() {
   histList = await (await fetch('/api/history')).json();
   renderHistory();
-  renderClasses();
+  syncClasses();
+}
+
+// 观察过的孩子自动进入班级名单，不需要手动录入
+function syncClasses() {
+  let changed = false;
+  for (const e of histList) {
+    const m = e.meta || {};
+    const name = (m.child || '').trim();
+    if (!name) continue;
+    const kname = (m.klass || '').split('/')[0].trim() || '未分班';
+    let c = classes.find(x => x.name === kname);
+    if (!c) { c = { name: kname, children: [] }; classes.push(c); changed = true; }
+    if (!c.children.includes(name)) { c.children.push(name); changed = true; }
+  }
+  if (changed) saveClasses(); else renderClasses();
 }
 
 function renderHistory() {
