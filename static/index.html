@@ -57,14 +57,24 @@
   select { width: 100%; padding: 10px 13px; border: 2px solid var(--line); border-radius: 13px;
     font: inherit; color: inherit; background: #fff; }
   select:focus { outline: none; border-color: var(--accent); }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--green-soft);
-    border: 2px solid #dcedc2; border-radius: 999px; padding: 5px 12px; cursor: pointer; font-size: 13px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; background: var(--green-soft);
+    border: 2px solid #dcedc2; border-radius: 999px; padding: 8px 16px; cursor: pointer; font-size: 15px; }
   .chip:hover { border-color: var(--green); }
-  .chip b { background: var(--green); color: #fff; border-radius: 999px; min-width: 18px; height: 18px;
-    display: grid; place-items: center; font-size: 11px; padding: 0 4px; }
+  .chip b { background: var(--green); color: #fff; border-radius: 999px; min-width: 20px; height: 20px;
+    display: grid; place-items: center; font-size: 12px; padding: 0 5px; }
   .chip i { font-style: normal; color: var(--muted); }
   .chip i:hover { color: var(--err); }
+  .overlay { position: fixed; inset: 0; background: rgba(74,63,53,.45); display: grid;
+    place-items: center; z-index: 50; }
+  .modal { background: var(--card); border: 2px solid var(--line); border-radius: 22px;
+    width: min(560px, 92vw); max-height: 84vh; overflow: auto; padding: 24px; }
+  .mhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .mhead h2 { margin: 0; }
+  .mclose { cursor: pointer; font-size: 18px; color: var(--muted); padding: 4px 8px; }
+  .mclose:hover { color: var(--err); }
+  .back { display: inline-block; color: var(--accent-deep); cursor: pointer; font-size: 14px; margin-bottom: 10px; }
+  .back:hover { text-decoration: underline; }
   .hist { cursor: pointer; background: var(--accent-soft); }
   .hist:hover { background: #fce3c4; }
   .hist .name { font-weight: 700; color: var(--accent-deep); flex: none; }
@@ -102,24 +112,11 @@
     <h1>小宝ai@孙老师</h1>
     <p>上传活动视频，AI 逐段记录幼儿行为并生成观察记录表草稿 · 模型 Qwen3-VL-8B 在本机运行，视频不会上传到任何外部服务器</p>
   </div>
+  <button class="ghost" id="btnClass" style="margin-left:auto;flex:none">👧 班级管理</button>
 </header>
 
 <main>
   <aside>
-    <div class="card">
-      <h2>👧 班级管理</h2>
-      <div class="row">
-        <select id="classSel"></select>
-        <div style="display:flex;gap:8px">
-          <button class="ghost" id="addClass" style="flex:1">＋班级</button>
-          <button class="ghost" id="delClass">删除</button>
-        </div>
-      </div>
-      <div class="chips" id="children"></div>
-      <button class="ghost" id="addChild" style="margin-top:12px">＋ 添加观察对象</button>
-      <div class="hint">点击孩子：自动填入观察信息，历史记录只显示这个孩子；数字是已有的观察次数。</div>
-    </div>
-
     <div class="card">
       <h2><span class="step">1</span>上传视频</h2>
       <div class="drop" id="drop"><strong>点击选择</strong>或把视频拖到这里<br><span class="hint">支持 mp4 / mov 等常见格式</span></div>
@@ -187,6 +184,32 @@
     </div>
   </section>
 </main>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="modal">
+    <div class="mhead">
+      <h2 id="mTitle">👧 班级管理</h2>
+      <span class="mclose" id="mClose">✕</span>
+    </div>
+    <div id="mClasses">
+      <div class="row">
+        <select id="classSel"></select>
+        <div style="display:flex;gap:8px">
+          <button class="ghost" id="addClass" style="flex:1">＋班级</button>
+          <button class="ghost" id="delClass">删除</button>
+        </div>
+      </div>
+      <div class="chips" id="children"></div>
+      <button class="ghost" id="addChild" style="margin-top:16px">＋ 添加观察对象</button>
+      <div class="hint">点击孩子查看 TA 的观察记录；绿色数字是已观察次数，× 从名单移除。</div>
+    </div>
+    <div id="mStudent" hidden>
+      <span class="back" id="mBack">← 返回班级</span>
+      <div class="log" id="stuList" style="max-height:52vh;margin-top:4px"></div>
+      <button class="primary" id="stuNew" style="margin-top:16px">＋ 给 TA 新建一次观察</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -277,21 +300,19 @@ async function saveClasses() {
   renderClasses();
 }
 
+function obsOf(name) {
+  return histList.filter(e => ((e.meta || {}).child || '').trim() === name.trim());
+}
+
 function renderClasses() {
   $('classSel').innerHTML = classes.map((c, i) =>
     `<option value="${i}" ${i === curClass ? 'selected' : ''}>${esc(c.name)}</option>`).join('')
     || '<option value="">（还没有班级）</option>';
   const c = classes[curClass];
   $('children').innerHTML = !c ? '' : (c.children.map(n => {
-    const cnt = histList.filter(e => (e.meta || {}).child === n).length;
-    return `<span class="chip" data-n="${esc(n)}">${esc(n)}<b>${cnt}</b><i data-n="${esc(n)}">×</i></span>`;
+    return `<span class="chip" data-n="${esc(n)}">${esc(n)}<b>${obsOf(n).length}</b><i data-n="${esc(n)}">×</i></span>`;
   }).join('') || '<div class="hint">点下面的按钮录入孩子</div>');
-  $('children').querySelectorAll('.chip').forEach(el => el.onclick = () => {
-    $('child').value = el.dataset.n;
-    if (classes[curClass]) $('klass').value = classes[curClass].name;
-    histFilter = el.dataset.n;
-    renderHistory();
-  });
+  $('children').querySelectorAll('.chip').forEach(el => el.onclick = () => showStudent(el.dataset.n));
   $('children').querySelectorAll('.chip i').forEach(el => el.onclick = ev => {
     ev.stopPropagation();
     if (!confirm(`把 ${el.dataset.n} 从班级名单里移除吗？（已有的观察记录不会删除）`)) return;
@@ -299,6 +320,47 @@ function renderClasses() {
     saveClasses();
   });
 }
+
+let curStudent = '';
+
+function showStudent(name) {
+  curStudent = name;
+  $('mTitle').textContent = `👧 ${name} 的观察记录`;
+  $('mClasses').hidden = true;
+  $('mStudent').hidden = false;
+  const list = obsOf(name);
+  $('stuList').innerHTML = list.map(e => {
+    const m = e.meta || {};
+    const sub = [m.date, m.scene, e.duration].filter(Boolean).join(' · ');
+    return `<div class="item hist" data-id="${e.id}"><span class="name">${esc(sub)}</span></div>`;
+  }).join('') || '<div class="hint">还没有观察记录，点下面的按钮开始第一次观察。</div>';
+  $('stuList').querySelectorAll('.hist').forEach(el => el.onclick = () => {
+    closeModal();
+    histFilter = name;
+    renderHistory();
+    openHistory(el.dataset.id);
+  });
+}
+
+function showClasses() {
+  $('mTitle').textContent = '👧 班级管理';
+  $('mStudent').hidden = true;
+  $('mClasses').hidden = false;
+  renderClasses();
+}
+
+function closeModal() { $('overlay').hidden = true; }
+
+$('btnClass').onclick = () => { $('overlay').hidden = false; showClasses(); };
+$('mClose').onclick = closeModal;
+$('overlay').onclick = e => { if (e.target === $('overlay')) closeModal(); };
+$('mBack').onclick = showClasses;
+$('stuNew').onclick = () => {
+  $('child').value = curStudent;
+  if (classes[curClass]) $('klass').value = classes[curClass].name;
+  closeModal();
+  $('child').scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
 
 $('classSel').onchange = () => { curClass = +$('classSel').value || 0; renderClasses(); };
 $('addClass').onclick = () => {
