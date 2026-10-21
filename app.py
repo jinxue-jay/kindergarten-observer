@@ -39,14 +39,16 @@ def parse_report(text: str) -> dict:
                     for k, v in data.items()}
         except json.JSONDecodeError:
             pass
-    return {"观察目的": "", "观察实录": "", "分析评价": text.strip(), "支持策略": ""}
+    return {"观察目的": "", "观察实录": "", "行为分析解读": text.strip(),
+            "支持策略": "", "教师分析反思": ""}
 
 
 NO_RECORD_REPORT = {
     "观察目的": "",
     "观察实录": "视频中没有识别到观察对象的明显行为。请确认视频画面中能看到观察对象，或调整“外貌特征”描述后重新分析。",
-    "分析评价": "",
+    "行为分析解读": "",
     "支持策略": "",
+    "教师分析反思": "",
 }
 
 

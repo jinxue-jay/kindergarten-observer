@@ -1,6 +1,11 @@
 .venv/
 models/
 work/
+video/
+*.mp4
+*.mov
+*.avi
+*.mkv
 dist/
 __pycache__/
 *.pyc
