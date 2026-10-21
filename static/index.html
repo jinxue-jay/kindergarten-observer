@@ -54,6 +54,11 @@
   .log .item { display: flex; gap: 10px; padding: 7px 10px; border-radius: 10px; margin: 3px 0; background: var(--green-soft); }
   .ts { color: var(--green); font-variant-numeric: tabular-nums; cursor: pointer; font-weight: 700; flex: none; }
   .ts:hover { text-decoration: underline; }
+  .hist { cursor: pointer; background: var(--accent-soft); }
+  .hist:hover { background: #fce3c4; }
+  .hist .name { font-weight: 700; color: var(--accent-deep); flex: none; }
+  .hist .del { margin-left: auto; flex: none; color: var(--err); font-size: 12px; }
+  .hist .del:hover { text-decoration: underline; }
   .who { color: var(--muted); }
   .empty { color: var(--muted); text-align: center; padding: 60px 20px; }
   .notice { background: var(--accent-soft); color: var(--accent-deep); border-radius: 14px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; }
@@ -92,7 +97,7 @@
   <aside>
     <div class="card">
       <h2><span class="step">1</span>上传视频</h2>
-      <div class="drop" id="drop"><strong>点击选择</strong>或把视频拖到这里<br><span class="hint">支持 mp4 / mov 等常见格式 · 分析完成后自动删除</span></div>
+      <div class="drop" id="drop"><strong>点击选择</strong>或把视频拖到这里<br><span class="hint">支持 mp4 / mov 等常见格式</span></div>
       <input type="file" id="file" accept="video/*" hidden>
       <video id="preview" controls></video>
     </div>
@@ -122,6 +127,12 @@
       <div class="bar"><div id="barFill"></div></div>
       <div class="status" id="status"></div>
       <div class="log" id="log"></div>
+    </div>
+
+    <div class="card" id="historyCard" hidden>
+      <h2>📚 历史记录</h2>
+      <div class="log" id="history"></div>
+      <div class="hint">点击条目查看记录表并回放视频；记录保存在本机 data 文件夹里。</div>
     </div>
   </aside>
 
@@ -194,16 +205,42 @@ function renderLog(segments) {
   $('log').scrollTop = $('log').scrollHeight;
 }
 
-function fillRecord(job) {
-  const r = job.report || {};
-  const values = {
-    child: $('child').value, klass: $('klass').value, date: $('date').value,
-    observer: $('observer').value, scene: $('scene').value, duration: job.duration,
-    ...r,
-  };
+function showRecord(values) {
   document.querySelectorAll('#record [data-k]').forEach(el => { el.textContent = values[el.dataset.k] ?? ''; });
   $('placeholder').hidden = true;
   $('result').hidden = false;
+}
+
+async function loadHistory() {
+  const list = await (await fetch('/api/history')).json();
+  $('historyCard').hidden = !list.length;
+  $('history').innerHTML = list.map(e => {
+    const m = e.meta || {};
+    const sub = [m.klass, m.date, e.duration].filter(Boolean).join(' · ');
+    return `<div class="item hist" data-id="${e.id}"><span class="name">${esc(m.child || '未填姓名')}</span><span>${esc(sub)}</span><span class="del" data-id="${e.id}">删除</span></div>`;
+  }).join('');
+  $('history').querySelectorAll('.del').forEach(el => el.onclick = async ev => {
+    ev.stopPropagation();
+    if (!confirm('删除这条记录和对应的视频吗？')) return;
+    await fetch(`/api/history/${el.dataset.id}`, { method: 'DELETE' });
+    loadHistory();
+  });
+  $('history').querySelectorAll('.hist').forEach(el => el.onclick = () => openHistory(el.dataset.id));
+}
+
+async function openHistory(id) {
+  const e = await (await fetch(`/api/history/${id}`)).json();
+  const m = e.meta || {};
+  $('progressCard').hidden = false;
+  $('barFill').style.width = '100%';
+  $('status').classList.remove('err');
+  $('status').textContent = `已载入历史记录：${m.child || '未填姓名'} ${m.date || ''}`;
+  renderLog(e.segments || []);
+  const v = $('preview');
+  v.src = `/api/history/${id}/video`;
+  v.style.display = 'block';
+  showRecord({ child: m.child, klass: m.klass, date: m.date, observer: m.observer,
+               scene: m.scene, duration: e.duration, ...(e.report || {}) });
 }
 
 async function poll(id) {
@@ -213,7 +250,14 @@ async function poll(id) {
   $('status').textContent = job.message;
   $('status').classList.toggle('err', job.status === 'error');
   renderLog(job.segments);
-  if (job.status === 'done') { fillRecord(job); $('go').disabled = false; return; }
+  if (job.status === 'done') {
+    showRecord({ child: $('child').value, klass: $('klass').value, date: $('date').value,
+                 observer: $('observer').value, scene: $('scene').value,
+                 duration: job.duration, ...(job.report || {}) });
+    $('go').disabled = false;
+    loadHistory();
+    return;
+  }
   if (job.status === 'error') { $('go').disabled = false; return; }
   setTimeout(() => poll(id), 1500);
 }
@@ -231,6 +275,10 @@ $('go').onclick = async () => {
   fd.append('scene', $('scene').value);
   fd.append('targets', $('targets').value);
   fd.append('focus', $('focus').value);
+  fd.append('child', $('child').value);
+  fd.append('klass', $('klass').value);
+  fd.append('date', $('date').value);
+  fd.append('observer', $('observer').value);
   try {
     const res = await fetch('/api/analyze', { method: 'POST', body: fd });
     if (!res.ok) throw new Error(await res.text());
@@ -243,6 +291,8 @@ $('go').onclick = async () => {
 };
 
 $('btnPrint').onclick = () => window.print();
+
+loadHistory();
 
 $('btnWord').onclick = () => {
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">

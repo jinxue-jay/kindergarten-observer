@@ -1,7 +1,8 @@
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
-WORK_DIR = BASE_DIR / "work"  # 上传的视频和抽出的帧，分析完成后自动删除
+WORK_DIR = BASE_DIR / "work"  # 分析过程中的临时文件（抽出的帧），完成后删除
+DATA_DIR = BASE_DIR / "data"  # 分析过的视频和观察记录，长期保存，供"历史记录"查看
 
 # 模型由 Ollama 提供（https://ollama.com），先运行 ollama pull qwen3-vl:8b-instruct
 OLLAMA_URL = "http://127.0.0.1:11434"

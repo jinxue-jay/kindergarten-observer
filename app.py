@@ -19,6 +19,9 @@ jobs: dict[str, dict] = {}
 # 一台电脑一次只跑一个模型推理，所有任务排队执行
 gpu_lock = threading.Lock()
 
+RECORD_DIR = config.DATA_DIR / "records"
+VIDEO_DIR = config.DATA_DIR / "videos"
+
 
 def parse_record_lines(text: str) -> list[dict]:
     rows = []
@@ -93,6 +96,18 @@ def run_job(job_id: str, video: Path, ctx: dict):
                 # 没有记录时不让模型写分析，否则它会凭空编造行为
                 job["report"] = NO_RECORD_REPORT
             job["done"] += 1
+
+            # 视频和完整记录归档到 data/，供"历史记录"查看，不再删除视频
+            VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+            RECORD_DIR.mkdir(parents=True, exist_ok=True)
+            saved = VIDEO_DIR / (job_id + video.suffix)
+            shutil.move(str(video), saved)
+            entry = {"id": job_id, "created": job["created"], "duration": job["duration"],
+                     "meta": job["meta"], "records": job["records"],
+                     "segments": job["segments"], "report": job["report"], "video": saved.name}
+            (RECORD_DIR / f"{job_id}.json").write_text(
+                json.dumps(entry, ensure_ascii=False, indent=1), encoding="utf-8")
+
             job["status"] = "done"
             job["message"] = "完成"
     except Exception as e:  # 把错误展示给页面，而不是让任务静默卡住
@@ -108,6 +123,10 @@ async def analyze(
     scene: str = Form(""),
     targets: str = Form(""),
     focus: str = Form(""),
+    child: str = Form(""),
+    klass: str = Form(""),
+    date: str = Form(""),
+    observer: str = Form(""),
 ):
     job_id = uuid.uuid4().hex[:12]
     job_dir = config.WORK_DIR / job_id
@@ -125,6 +144,9 @@ async def analyze(
         "status": "queued", "message": "排队中", "done": 0, "total": 1,
         "duration": "", "records": [], "segments": [], "report": None,
         "created": datetime.now().isoformat(timespec="seconds"),
+        # 观察信息随记录一起归档
+        "meta": {"child": child.strip(), "klass": klass.strip(), "date": date.strip(),
+                 "observer": observer.strip(), **ctx},
     }
     threading.Thread(target=run_job, args=(job_id, path, ctx), daemon=True).start()
     return {"job_id": job_id}
@@ -135,6 +157,45 @@ def job_status(job_id: str):
     if job_id not in jobs:
         raise HTTPException(404, "任务不存在")
     return jobs[job_id]
+
+
+@app.get("/api/history")
+def history_list():
+    items = []
+    for p in RECORD_DIR.glob("*.json"):
+        e = json.loads(p.read_text(encoding="utf-8"))
+        items.append({"id": e["id"], "created": e["created"],
+                      "duration": e["duration"], "meta": e.get("meta", {})})
+    items.sort(key=lambda x: x["created"], reverse=True)
+    return items
+
+
+def _load_entry(item_id: str) -> dict:
+    path = RECORD_DIR / f"{item_id}.json"
+    if not path.exists():
+        raise HTTPException(404, "记录不存在")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/history/{item_id}")
+def history_item(item_id: str):
+    return _load_entry(item_id)
+
+
+@app.get("/api/history/{item_id}/video")
+def history_video(item_id: str):
+    path = VIDEO_DIR / _load_entry(item_id)["video"]
+    if not path.exists():
+        raise HTTPException(404, "视频文件不存在")
+    return FileResponse(path)
+
+
+@app.delete("/api/history/{item_id}")
+def history_delete(item_id: str):
+    entry = _load_entry(item_id)
+    (VIDEO_DIR / entry["video"]).unlink(missing_ok=True)
+    (RECORD_DIR / f"{item_id}.json").unlink()
+    return {"ok": True}
 
 
 @app.get("/")

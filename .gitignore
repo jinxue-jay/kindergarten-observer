@@ -1,6 +1,7 @@
 .venv/
 models/
 work/
+data/
 video/
 *.mp4
 *.mov
