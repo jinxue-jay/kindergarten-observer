@@ -85,15 +85,11 @@
   .empty { color: var(--muted); text-align: center; padding: 60px 20px; }
   .notice { background: var(--accent-soft); color: var(--accent-deep); border-radius: 14px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; }
   .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-  #record h3 { text-align: center; font-size: 21px; margin: 6px 0 18px; letter-spacing: 3px; }
-  table.rec { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;
-    border: 2px solid var(--line); border-radius: 16px; overflow: hidden; }
-  table.rec th, table.rec td { border-bottom: 1px solid var(--line); padding: 10px 14px; vertical-align: top; text-align: left; }
-  table.rec td + th, table.rec th + td + th + td { border-left: 1px solid var(--line); }
-  table.rec tr:last-child th, table.rec tr:last-child td { border-bottom: 0; }
-  table.rec th { background: #fbf3e4; width: 118px; font-weight: 600; white-space: nowrap; color: #8a6d3b; }
-  table.rec td { white-space: pre-wrap; }
-  table.rec td.big { min-height: 120px; height: auto; }
+  #record h3 { text-align: center; font-size: 21px; margin: 6px 0 20px; letter-spacing: 2px; }
+  .docline { margin: 12px 0; font-size: 15px; line-height: 1.9; }
+  .docline b { color: #8a6d3b; }
+  .docline span { white-space: pre-wrap; }
+  .doctext { white-space: pre-wrap; margin-top: 6px; text-align: justify; min-height: 40px; }
   [contenteditable]:focus { outline: 2px solid var(--accent-soft); background: #fffaf2; }
   .sign { display: flex; justify-content: flex-end; gap: 40px; margin-top: 18px; font-size: 14px; }
   @media print {
@@ -101,8 +97,7 @@
     body { background: #fff; }
     main { display: block; padding: 0; }
     .card { border: 0; padding: 0; border-radius: 0; }
-    table.rec { border-collapse: collapse; border-radius: 0; border: 0; }
-    table.rec th, table.rec td { border: 1px solid #000; }
+    .docline b { color: #000; }
   }
 </style>
 </head>
@@ -169,17 +164,12 @@
         <button class="ghost" id="btnCopy">📋 复制文本</button>
       </div>
       <div id="record">
-        <h3>幼儿行为观察记录表</h3>
-        <table class="rec">
-          <tr><th>观察对象</th><td contenteditable data-k="child"></td><th>班级 / 年龄</th><td contenteditable data-k="klass"></td></tr>
-          <tr><th>观察日期</th><td contenteditable data-k="date"></td><th>观察时长</th><td contenteditable data-k="duration"></td></tr>
-          <tr><th>观察地点 / 活动</th><td contenteditable data-k="scene"></td><th>观察方法</th><td contenteditable>视频观察 · 轶事记录法</td></tr>
-          <tr><th>观察目的</th><td colspan="3" contenteditable data-k="观察目的"></td></tr>
-          <tr><th>观察实录</th><td colspan="3" class="big" contenteditable data-k="观察实录"></td></tr>
-          <tr><th>行为分析解读</th><td colspan="3" class="big" contenteditable data-k="行为分析解读"></td></tr>
-          <tr><th>支持策略</th><td colspan="3" class="big" contenteditable data-k="支持策略"></td></tr>
-          <tr><th>教师分析反思</th><td colspan="3" class="big" contenteditable data-k="教师分析反思"></td></tr>
-        </table>
+        <h3 contenteditable data-k="标题"></h3>
+        <div class="docline"><b>观察时间：</b><span contenteditable data-k="观察时间"></span></div>
+        <div class="docline"><b>观察对象：</b><span contenteditable data-k="观察对象"></span></div>
+        <div class="docline"><b>观察内容：</b><span contenteditable data-k="观察内容"></span></div>
+        <div class="docline block"><b>观察实录：</b><div class="doctext" contenteditable data-k="观察实录"></div></div>
+        <div class="docline block"><b>分析与跟进：</b><div class="doctext" contenteditable data-k="分析与跟进"></div></div>
         <div class="sign"><span>观察者：<span contenteditable data-k="observer"></span></span></div>
       </div>
     </div>
@@ -258,6 +248,33 @@ function showRecord(values) {
   document.querySelectorAll('#record [data-k]').forEach(el => { el.textContent = values[el.dataset.k] ?? ''; });
   $('placeholder').hidden = true;
   $('result').hidden = false;
+}
+
+function cnDate(d) {
+  const [y, m, day] = (d || '').split('-');
+  return y ? `${y}年${+m}月${+day}日` : '';
+}
+
+// 旧版五栏记录转成新格式，保证历史记录还能正常显示
+function normReport(r) {
+  r = r || {};
+  if ('分析与跟进' in r || '标题' in r) return r;
+  const parts = [];
+  if (r['行为分析解读']) parts.push('分析：' + r['行为分析解读']);
+  if (r['支持策略']) parts.push('跟进：\n' + r['支持策略']);
+  if (r['教师分析反思']) parts.push('教师反思：' + r['教师分析反思']);
+  return { '观察内容': r['观察目的'] || '', '观察实录': r['观察实录'] || '',
+           '分析与跟进': parts.join('\n') };
+}
+
+function recordValues(meta, duration, report) {
+  const r = normReport(report);
+  return {
+    '标题': r['标题'] || '幼儿行为观察记录',
+    '观察时间': `${cnDate(meta.date)}（视频时长 ${duration || ''}）`,
+    '观察对象': [meta.klass, meta.child].filter(Boolean).join(' '),
+    observer: meta.observer, ...r,
+  };
 }
 
 let histList = [], histFilter = null;
@@ -412,8 +429,7 @@ async function openHistory(id) {
   const v = $('preview');
   v.src = `/api/history/${id}/video`;
   v.style.display = 'block';
-  showRecord({ child: m.child, klass: m.klass, date: m.date, observer: m.observer,
-               scene: m.scene, duration: e.duration, ...(e.report || {}) });
+  showRecord(recordValues(m, e.duration, e.report));
 }
 
 async function poll(id) {
@@ -424,9 +440,9 @@ async function poll(id) {
   $('status').classList.toggle('err', job.status === 'error');
   renderLog(job.segments);
   if (job.status === 'done') {
-    showRecord({ child: $('child').value, klass: $('klass').value, date: $('date').value,
-                 observer: $('observer').value, scene: $('scene').value,
-                 duration: job.duration, ...(job.report || {}) });
+    showRecord(recordValues({ child: $('child').value, klass: $('klass').value,
+                              date: $('date').value, observer: $('observer').value },
+                            job.duration, job.report));
     $('go').disabled = false;
     loadHistory();
     return;
@@ -469,9 +485,9 @@ $('btnPrint').onclick = () => window.print();
 
 $('btnWord').onclick = () => {
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">
-<style>body{font-family:"SimSun","宋体";font-size:12pt}h3{text-align:center;font-size:16pt}
-table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:6pt;vertical-align:top;text-align:left}
-th{background:#f2f2f2;white-space:nowrap}td{white-space:pre-wrap}.sign{text-align:right;margin-top:12pt}</style></head>
+<style>body{font-family:"SimSun","宋体";font-size:12pt;line-height:1.8}h3{text-align:center;font-size:16pt}
+.docline{margin:8pt 0}.docline b{font-weight:bold}.doctext{white-space:pre-wrap;text-align:justify;text-indent:0}
+.docline span{white-space:pre-wrap}.sign{text-align:right;margin-top:16pt}</style></head>
 <body>${$('record').innerHTML.replace(/ contenteditable(="[^"]*")?/g, '')}</body></html>`;
   const blob = new Blob(['﻿' + html], { type: 'application/msword' });
   const a = document.createElement('a');
@@ -481,11 +497,8 @@ th{background:#f2f2f2;white-space:nowrap}td{white-space:pre-wrap}.sign{text-alig
 };
 
 $('btnCopy').onclick = async () => {
-  const lines = ['幼儿行为观察记录表'];
-  document.querySelectorAll('#record tr').forEach(tr => {
-    const cells = [...tr.children];
-    for (let i = 0; i < cells.length; i += 2) lines.push(`${cells[i].textContent}：${cells[i + 1]?.textContent ?? ''}`);
-  });
+  const lines = [document.querySelector('#record h3').textContent, ''];
+  document.querySelectorAll('#record .docline').forEach(d => lines.push(d.textContent, ''));
   lines.push(document.querySelector('#record .sign').textContent);
   await navigator.clipboard.writeText(lines.join('\n'));
   $('btnCopy').textContent = '已复制';

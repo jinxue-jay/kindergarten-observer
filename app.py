@@ -43,16 +43,14 @@ def parse_report(text: str) -> dict:
                     for k, v in data.items()}
         except json.JSONDecodeError:
             pass
-    return {"观察目的": "", "观察实录": "", "行为分析解读": text.strip(),
-            "支持策略": "", "教师分析反思": ""}
+    return {"标题": "", "观察内容": "", "观察实录": "", "分析与跟进": text.strip()}
 
 
 NO_RECORD_REPORT = {
-    "观察目的": "",
+    "标题": "",
+    "观察内容": "",
     "观察实录": "视频中没有识别到观察对象的明显行为。请确认视频画面中能看到观察对象，或调整“外貌特征”描述后重新分析。",
-    "行为分析解读": "",
-    "支持策略": "",
-    "教师分析反思": "",
+    "分析与跟进": "",
 }
 
 
@@ -91,7 +89,9 @@ def run_job(job_id: str, video: Path, ctx: dict):
             job["message"] = "正在撰写观察记录表"
             records = "\n".join(f"{r['time']}｜{r['who']}｜{r['what']}" for r in job["records"])
             if records:
-                text = vlm.chat(REPORT_PROMPT.format(records=records, **ctx), config.REPORT_MAX_TOKENS)
+                # meta 里有 child/klass 和 ctx 的全部字段，标题需要用年龄段
+                text = vlm.chat(REPORT_PROMPT.format(records=records, **job["meta"]),
+                                config.REPORT_MAX_TOKENS)
                 job["report"] = parse_report(text)
             else:
                 # 没有记录时不让模型写分析，否则它会凭空编造行为
