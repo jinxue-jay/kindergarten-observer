@@ -6,8 +6,8 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 import config
 from model import vlm
@@ -44,6 +44,48 @@ def parse_report(text: str) -> dict:
         except json.JSONDecodeError:
             pass
     return {"标题": "", "观察内容": "", "观察实录": "", "分析与跟进": text.strip()}
+
+
+LOGIN_PAGE = """<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小宝ai@孙老师</title>
+<style>
+  body { margin:0; min-height:100vh; display:grid; place-items:center; background:#fdf6ec;
+    font:15px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color:#4a3f35; }
+  .box { background:#fffdf8; border:2px solid #f0e2cf; border-radius:22px; padding:36px 40px; text-align:center; }
+  .logo { font-size:40px; }
+  h1 { font-size:20px; margin:10px 0 4px; }
+  p { color:#9b8a78; font-size:13px; margin:0 0 20px; }
+  input { width:220px; padding:10px 14px; border:2px solid #f0e2cf; border-radius:13px; font:inherit; text-align:center; }
+  input:focus { outline:none; border-color:#f59e52; }
+  button { display:block; width:100%; margin-top:14px; padding:11px; border:0; border-radius:14px;
+    background:linear-gradient(135deg,#f6ad5f,#e8812c); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+</style></head><body>
+<div class="box">
+  <div class="logo">🌻</div>
+  <h1>小宝ai@孙老师</h1>
+  <p>请输入访问口令（向孙老师索取）</p>
+  <input id="code" type="password" placeholder="访问口令">
+  <button onclick="go()">进入</button>
+</div>
+<script>
+function go() {
+  document.cookie = 'xb_code=' + encodeURIComponent(document.getElementById('code').value)
+    + ';max-age=31536000;path=/;SameSite=Lax';
+  location.reload();
+}
+document.getElementById('code').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+</script></body></html>"""
+
+
+@app.middleware("http")
+async def check_access(request: Request, call_next):
+    """页面经公网隧道分享，所有请求都要带口令，防止陌生人上传视频、翻看孩子的记录。"""
+    if request.cookies.get("xb_code") == config.ACCESS_CODE:
+        return await call_next(request)
+    if request.url.path == "/":
+        return HTMLResponse(LOGIN_PAGE)
+    return JSONResponse({"detail": "需要访问口令"}, status_code=401)
 
 
 NO_RECORD_REPORT = {
